@@ -83,7 +83,7 @@ export default function Checkout() {
         .insert({
           user_id: user.id,
           total: total,
-          status: 'confirmed',
+          status: 'pending',
           shipping_address: shippingData.address,
           shipping_city: shippingData.city,
           payment_method: paymentMethod,
