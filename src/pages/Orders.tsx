@@ -63,15 +63,15 @@ export default function Orders() {
   };
 
   const getStatusBadge = (status: string) => {
-    const config: Record<string, { variant: 'default' | 'secondary' | 'destructive' | 'outline'; label: string }> = {
+    const config: Record<string, { variant: 'default' | 'secondary' | 'destructive' | 'outline'; label: string; className?: string }> = {
       pending: { variant: 'outline', label: 'Pendiente' },
-      confirmed: { variant: 'default', label: 'Confirmado' },
+      processing: { variant: 'secondary', label: 'En proceso' },
       shipped: { variant: 'secondary', label: 'Enviado' },
-      delivered: { variant: 'default', label: 'Entregado' },
+      delivered: { variant: 'default', label: 'Completado', className: 'bg-success text-success-foreground' },
       cancelled: { variant: 'destructive', label: 'Cancelado' }
     };
-    const { variant, label } = config[status] || { variant: 'outline', label: status };
-    return <Badge variant={variant}>{label}</Badge>;
+    const { variant, label, className } = config[status] || { variant: 'outline', label: status };
+    return <Badge variant={variant} className={className}>{label}</Badge>;
   };
 
   const formatDate = (dateStr: string) => {
