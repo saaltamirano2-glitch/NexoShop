@@ -18,6 +18,7 @@ interface AdminProduct {
   updated_at: string;
   categories?: { name: string } | null;
 }
+
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -28,7 +29,6 @@ import { Switch } from '@/components/ui/switch';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Plus, Pencil, Trash2, Package, Tags, ShoppingCart, Loader2, Search, AlertTriangle } from 'lucide-react';
 import { motion } from 'framer-motion';
@@ -44,6 +44,12 @@ interface ProductFormData {
   featured: boolean;
 }
 
+interface CategoryFormData {
+  name: string;
+  description: string;
+  image_url: string;
+}
+
 const emptyProduct: ProductFormData = {
   name: '',
   description: '',
@@ -54,22 +60,40 @@ const emptyProduct: ProductFormData = {
   featured: false
 };
 
+const emptyCategory: CategoryFormData = {
+  name: '',
+  description: '',
+  image_url: ''
+};
+
+type ActiveSection = 'products' | 'categories' | 'orders';
+
 export default function Admin() {
   const navigate = useNavigate();
   const { user, isAdmin, loading: authLoading } = useAuth();
   
+  const [activeSection, setActiveSection] = useState<ActiveSection>('products');
   const [products, setProducts] = useState<AdminProduct[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   
+  // Product dialogs
   const [productDialogOpen, setProductDialogOpen] = useState(false);
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deleteProductDialogOpen, setDeleteProductDialogOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<AdminProduct | null>(null);
   const [productToDelete, setProductToDelete] = useState<AdminProduct | null>(null);
-  const [formData, setFormData] = useState<ProductFormData>(emptyProduct);
-  const [saving, setSaving] = useState(false);
+  const [productFormData, setProductFormData] = useState<ProductFormData>(emptyProduct);
+  const [savingProduct, setSavingProduct] = useState(false);
+
+  // Category dialogs
+  const [categoryDialogOpen, setCategoryDialogOpen] = useState(false);
+  const [deleteCategoryDialogOpen, setDeleteCategoryDialogOpen] = useState(false);
+  const [editingCategory, setEditingCategory] = useState<Category | null>(null);
+  const [categoryToDelete, setCategoryToDelete] = useState<Category | null>(null);
+  const [categoryFormData, setCategoryFormData] = useState<CategoryFormData>(emptyCategory);
+  const [savingCategory, setSavingCategory] = useState(false);
 
   useEffect(() => {
     if (!authLoading) {
@@ -104,15 +128,16 @@ export default function Admin() {
     }
   };
 
-  const openCreateDialog = () => {
+  // Product handlers
+  const openCreateProductDialog = () => {
     setEditingProduct(null);
-    setFormData(emptyProduct);
+    setProductFormData(emptyProduct);
     setProductDialogOpen(true);
   };
 
-  const openEditDialog = (product: AdminProduct) => {
+  const openEditProductDialog = (product: AdminProduct) => {
     setEditingProduct(product);
-    setFormData({
+    setProductFormData({
       name: product.name,
       description: product.description || '',
       price: product.price.toString(),
@@ -124,27 +149,27 @@ export default function Admin() {
     setProductDialogOpen(true);
   };
 
-  const openDeleteDialog = (product: AdminProduct) => {
+  const openDeleteProductDialog = (product: AdminProduct) => {
     setProductToDelete(product);
-    setDeleteDialogOpen(true);
+    setDeleteProductDialogOpen(true);
   };
 
   const handleSaveProduct = async () => {
-    if (!formData.name || !formData.price) {
+    if (!productFormData.name || !productFormData.price) {
       toast.error('Nombre y precio son requeridos');
       return;
     }
 
-    setSaving(true);
+    setSavingProduct(true);
     try {
       const productData = {
-        name: formData.name,
-        description: formData.description || null,
-        price: parseFloat(formData.price),
-        stock: parseInt(formData.stock) || 0,
-        image_url: formData.image_url || null,
-        category_id: formData.category_id || null,
-        featured: formData.featured
+        name: productFormData.name,
+        description: productFormData.description || null,
+        price: parseFloat(productFormData.price),
+        stock: parseInt(productFormData.stock) || 0,
+        image_url: productFormData.image_url || null,
+        category_id: productFormData.category_id || null,
+        featured: productFormData.featured
       };
 
       if (editingProduct) {
@@ -170,7 +195,7 @@ export default function Admin() {
       console.error('Error saving product:', error);
       toast.error('Error al guardar el producto');
     } finally {
-      setSaving(false);
+      setSavingProduct(false);
     }
   };
 
@@ -186,12 +211,96 @@ export default function Admin() {
       if (error) throw error;
       
       toast.success('Producto eliminado');
-      setDeleteDialogOpen(false);
+      setDeleteProductDialogOpen(false);
       setProductToDelete(null);
       loadData();
     } catch (error) {
       console.error('Error deleting product:', error);
       toast.error('Error al eliminar el producto');
+    }
+  };
+
+  // Category handlers
+  const openCreateCategoryDialog = () => {
+    setEditingCategory(null);
+    setCategoryFormData(emptyCategory);
+    setCategoryDialogOpen(true);
+  };
+
+  const openEditCategoryDialog = (category: Category) => {
+    setEditingCategory(category);
+    setCategoryFormData({
+      name: category.name,
+      description: category.description || '',
+      image_url: category.image_url || ''
+    });
+    setCategoryDialogOpen(true);
+  };
+
+  const openDeleteCategoryDialog = (category: Category) => {
+    setCategoryToDelete(category);
+    setDeleteCategoryDialogOpen(true);
+  };
+
+  const handleSaveCategory = async () => {
+    if (!categoryFormData.name) {
+      toast.error('El nombre es requerido');
+      return;
+    }
+
+    setSavingCategory(true);
+    try {
+      const categoryData = {
+        name: categoryFormData.name,
+        description: categoryFormData.description || null,
+        image_url: categoryFormData.image_url || null
+      };
+
+      if (editingCategory) {
+        const { error } = await supabase
+          .from('categories')
+          .update(categoryData)
+          .eq('id', editingCategory.id);
+        
+        if (error) throw error;
+        toast.success('Categoría actualizada');
+      } else {
+        const { error } = await supabase
+          .from('categories')
+          .insert(categoryData);
+        
+        if (error) throw error;
+        toast.success('Categoría creada');
+      }
+
+      setCategoryDialogOpen(false);
+      loadData();
+    } catch (error) {
+      console.error('Error saving category:', error);
+      toast.error('Error al guardar la categoría');
+    } finally {
+      setSavingCategory(false);
+    }
+  };
+
+  const handleDeleteCategory = async () => {
+    if (!categoryToDelete) return;
+
+    try {
+      const { error } = await supabase
+        .from('categories')
+        .delete()
+        .eq('id', categoryToDelete.id);
+      
+      if (error) throw error;
+      
+      toast.success('Categoría eliminada');
+      setDeleteCategoryDialogOpen(false);
+      setCategoryToDelete(null);
+      loadData();
+    } catch (error) {
+      console.error('Error deleting category:', error);
+      toast.error('Error al eliminar la categoría. Puede que tenga productos asociados.');
     }
   };
 
@@ -238,12 +347,15 @@ export default function Admin() {
           <h1 className="text-3xl font-display font-bold mb-2">Panel de Administración</h1>
           <p className="text-muted-foreground mb-8">Gestiona productos, categorías y pedidos</p>
 
-          {/* Stats */}
+          {/* Navigation Cards */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-            <Card>
+            <Card 
+              className={`cursor-pointer transition-all hover:shadow-lg ${activeSection === 'products' ? 'ring-2 ring-primary' : ''}`}
+              onClick={() => setActiveSection('products')}
+            >
               <CardContent className="flex items-center gap-4 pt-6">
-                <div className="p-3 bg-primary/10 rounded-lg">
-                  <Package className="h-6 w-6 text-primary" />
+                <div className={`p-3 rounded-lg ${activeSection === 'products' ? 'bg-primary text-primary-foreground' : 'bg-primary/10'}`}>
+                  <Package className={`h-6 w-6 ${activeSection === 'products' ? 'text-primary-foreground' : 'text-primary'}`} />
                 </div>
                 <div>
                   <p className="text-2xl font-bold">{products.length}</p>
@@ -251,10 +363,13 @@ export default function Admin() {
                 </div>
               </CardContent>
             </Card>
-            <Card>
+            <Card 
+              className={`cursor-pointer transition-all hover:shadow-lg ${activeSection === 'categories' ? 'ring-2 ring-primary' : ''}`}
+              onClick={() => setActiveSection('categories')}
+            >
               <CardContent className="flex items-center gap-4 pt-6">
-                <div className="p-3 bg-secondary/50 rounded-lg">
-                  <Tags className="h-6 w-6 text-secondary-foreground" />
+                <div className={`p-3 rounded-lg ${activeSection === 'categories' ? 'bg-primary text-primary-foreground' : 'bg-secondary/50'}`}>
+                  <Tags className={`h-6 w-6 ${activeSection === 'categories' ? 'text-primary-foreground' : 'text-secondary-foreground'}`} />
                 </div>
                 <div>
                   <p className="text-2xl font-bold">{categories.length}</p>
@@ -262,10 +377,13 @@ export default function Admin() {
                 </div>
               </CardContent>
             </Card>
-            <Card>
+            <Card 
+              className={`cursor-pointer transition-all hover:shadow-lg ${activeSection === 'orders' ? 'ring-2 ring-primary' : ''}`}
+              onClick={() => setActiveSection('orders')}
+            >
               <CardContent className="flex items-center gap-4 pt-6">
-                <div className="p-3 bg-success/10 rounded-lg">
-                  <ShoppingCart className="h-6 w-6 text-success" />
+                <div className={`p-3 rounded-lg ${activeSection === 'orders' ? 'bg-primary text-primary-foreground' : 'bg-success/10'}`}>
+                  <ShoppingCart className={`h-6 w-6 ${activeSection === 'orders' ? 'text-primary-foreground' : 'text-success'}`} />
                 </div>
                 <div>
                   <p className="text-2xl font-bold">{orders.length}</p>
@@ -275,17 +393,17 @@ export default function Admin() {
             </Card>
           </div>
 
-          <Tabs defaultValue="products">
-            <TabsList className="mb-6">
-              <TabsTrigger value="products">Productos</TabsTrigger>
-              <TabsTrigger value="orders">Pedidos</TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="products">
+          {/* Products Section */}
+          {activeSection === 'products' && (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.2 }}
+            >
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between">
                   <CardTitle>Gestión de Productos</CardTitle>
-                  <Button onClick={openCreateDialog} className="gap-2">
+                  <Button onClick={openCreateProductDialog} className="gap-2">
                     <Plus className="h-4 w-4" />
                     Nuevo Producto
                   </Button>
@@ -344,7 +462,7 @@ export default function Admin() {
                                 <Button
                                   variant="ghost"
                                   size="icon"
-                                  onClick={() => openEditDialog(product)}
+                                  onClick={() => openEditProductDialog(product)}
                                 >
                                   <Pencil className="h-4 w-4" />
                                 </Button>
@@ -352,7 +470,7 @@ export default function Admin() {
                                   variant="ghost"
                                   size="icon"
                                   className="text-destructive hover:text-destructive"
-                                  onClick={() => openDeleteDialog(product)}
+                                  onClick={() => openDeleteProductDialog(product)}
                                 >
                                   <Trash2 className="h-4 w-4" />
                                 </Button>
@@ -365,9 +483,98 @@ export default function Admin() {
                   </div>
                 </CardContent>
               </Card>
-            </TabsContent>
+            </motion.div>
+          )}
 
-            <TabsContent value="orders">
+          {/* Categories Section */}
+          {activeSection === 'categories' && (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.2 }}
+            >
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between">
+                  <CardTitle>Gestión de Categorías</CardTitle>
+                  <Button onClick={openCreateCategoryDialog} className="gap-2">
+                    <Plus className="h-4 w-4" />
+                    Nueva Categoría
+                  </Button>
+                </CardHeader>
+                <CardContent>
+                  <div className="rounded-md border">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="w-16">Imagen</TableHead>
+                          <TableHead>Nombre</TableHead>
+                          <TableHead>Descripción</TableHead>
+                          <TableHead>Productos</TableHead>
+                          <TableHead className="text-right">Acciones</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {categories.length === 0 ? (
+                          <TableRow>
+                            <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                              No hay categorías
+                            </TableCell>
+                          </TableRow>
+                        ) : (
+                          categories.map(category => {
+                            const productCount = products.filter(p => p.category_id === category.id).length;
+                            return (
+                              <TableRow key={category.id}>
+                                <TableCell>
+                                  <img
+                                    src={category.image_url || '/placeholder.svg'}
+                                    alt={category.name}
+                                    className="w-12 h-12 object-cover rounded"
+                                  />
+                                </TableCell>
+                                <TableCell className="font-medium">{category.name}</TableCell>
+                                <TableCell className="max-w-xs truncate">
+                                  {category.description || '-'}
+                                </TableCell>
+                                <TableCell>
+                                  <Badge variant="secondary">{productCount} productos</Badge>
+                                </TableCell>
+                                <TableCell className="text-right">
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => openEditCategoryDialog(category)}
+                                  >
+                                    <Pencil className="h-4 w-4" />
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="text-destructive hover:text-destructive"
+                                    onClick={() => openDeleteCategoryDialog(category)}
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </TableCell>
+                              </TableRow>
+                            );
+                          })
+                        )}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </CardContent>
+              </Card>
+            </motion.div>
+          )}
+
+          {/* Orders Section */}
+          {activeSection === 'orders' && (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.2 }}
+            >
               <Card>
                 <CardHeader>
                   <CardTitle>Pedidos Recientes</CardTitle>
@@ -413,8 +620,8 @@ export default function Admin() {
                   </div>
                 </CardContent>
               </Card>
-            </TabsContent>
-          </Tabs>
+            </motion.div>
+          )}
         </motion.div>
       </div>
 
@@ -435,8 +642,8 @@ export default function Admin() {
               <Label htmlFor="name">Nombre *</Label>
               <Input
                 id="name"
-                value={formData.name}
-                onChange={e => setFormData({ ...formData, name: e.target.value })}
+                value={productFormData.name}
+                onChange={e => setProductFormData({ ...productFormData, name: e.target.value })}
                 placeholder="Nombre del producto"
               />
             </div>
@@ -445,8 +652,8 @@ export default function Admin() {
               <Label htmlFor="description">Descripción</Label>
               <Textarea
                 id="description"
-                value={formData.description}
-                onChange={e => setFormData({ ...formData, description: e.target.value })}
+                value={productFormData.description}
+                onChange={e => setProductFormData({ ...productFormData, description: e.target.value })}
                 placeholder="Descripción del producto"
                 rows={3}
               />
@@ -460,8 +667,8 @@ export default function Admin() {
                   type="number"
                   step="0.01"
                   min="0"
-                  value={formData.price}
-                  onChange={e => setFormData({ ...formData, price: e.target.value })}
+                  value={productFormData.price}
+                  onChange={e => setProductFormData({ ...productFormData, price: e.target.value })}
                   placeholder="0.00"
                 />
               </div>
@@ -471,8 +678,8 @@ export default function Admin() {
                   id="stock"
                   type="number"
                   min="0"
-                  value={formData.stock}
-                  onChange={e => setFormData({ ...formData, stock: e.target.value })}
+                  value={productFormData.stock}
+                  onChange={e => setProductFormData({ ...productFormData, stock: e.target.value })}
                   placeholder="0"
                 />
               </div>
@@ -482,8 +689,8 @@ export default function Admin() {
               <Label htmlFor="image_url">URL de imagen</Label>
               <Input
                 id="image_url"
-                value={formData.image_url}
-                onChange={e => setFormData({ ...formData, image_url: e.target.value })}
+                value={productFormData.image_url}
+                onChange={e => setProductFormData({ ...productFormData, image_url: e.target.value })}
                 placeholder="https://ejemplo.com/imagen.jpg"
               />
             </div>
@@ -491,8 +698,8 @@ export default function Admin() {
             <div className="space-y-2">
               <Label htmlFor="category">Categoría</Label>
               <Select
-                value={formData.category_id}
-                onValueChange={value => setFormData({ ...formData, category_id: value })}
+                value={productFormData.category_id}
+                onValueChange={value => setProductFormData({ ...productFormData, category_id: value })}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Seleccionar categoría" />
@@ -511,8 +718,8 @@ export default function Admin() {
               <Label htmlFor="featured">Producto destacado</Label>
               <Switch
                 id="featured"
-                checked={formData.featured}
-                onCheckedChange={checked => setFormData({ ...formData, featured: checked })}
+                checked={productFormData.featured}
+                onCheckedChange={checked => setProductFormData({ ...productFormData, featured: checked })}
               />
             </div>
           </div>
@@ -521,8 +728,8 @@ export default function Admin() {
             <Button variant="outline" onClick={() => setProductDialogOpen(false)}>
               Cancelar
             </Button>
-            <Button onClick={handleSaveProduct} disabled={saving}>
-              {saving ? (
+            <Button onClick={handleSaveProduct} disabled={savingProduct}>
+              {savingProduct ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   Guardando...
@@ -535,8 +742,8 @@ export default function Admin() {
         </DialogContent>
       </Dialog>
 
-      {/* Delete Confirmation Dialog */}
-      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+      {/* Delete Product Confirmation Dialog */}
+      <AlertDialog open={deleteProductDialogOpen} onOpenChange={setDeleteProductDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2">
@@ -551,6 +758,94 @@ export default function Admin() {
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDeleteProduct}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Eliminar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Category Dialog */}
+      <Dialog open={categoryDialogOpen} onOpenChange={setCategoryDialogOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>
+              {editingCategory ? 'Editar Categoría' : 'Nueva Categoría'}
+            </DialogTitle>
+            <DialogDescription>
+              {editingCategory ? 'Modifica los detalles de la categoría' : 'Añade una nueva categoría'}
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="category-name">Nombre *</Label>
+              <Input
+                id="category-name"
+                value={categoryFormData.name}
+                onChange={e => setCategoryFormData({ ...categoryFormData, name: e.target.value })}
+                placeholder="Nombre de la categoría"
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="category-description">Descripción</Label>
+              <Textarea
+                id="category-description"
+                value={categoryFormData.description}
+                onChange={e => setCategoryFormData({ ...categoryFormData, description: e.target.value })}
+                placeholder="Descripción de la categoría"
+                rows={3}
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="category-image">URL de imagen</Label>
+              <Input
+                id="category-image"
+                value={categoryFormData.image_url}
+                onChange={e => setCategoryFormData({ ...categoryFormData, image_url: e.target.value })}
+                placeholder="https://ejemplo.com/imagen.jpg"
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCategoryDialogOpen(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleSaveCategory} disabled={savingCategory}>
+              {savingCategory ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Guardando...
+                </>
+              ) : (
+                'Guardar'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Category Confirmation Dialog */}
+      <AlertDialog open={deleteCategoryDialogOpen} onOpenChange={setDeleteCategoryDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-destructive" />
+              ¿Eliminar categoría?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta acción no se puede deshacer. La categoría "{categoryToDelete?.name}" será eliminada permanentemente.
+              Los productos asociados quedarán sin categoría.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteCategory}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               Eliminar
