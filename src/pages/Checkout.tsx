@@ -94,9 +94,8 @@ export default function Checkout() {
       
       if (orderError) throw orderError;
       
-      // Create order items and reduce stock
+      // Create order items (stock will be reduced when order is completed by admin)
       for (const item of items) {
-        // Insert order item
         await supabase
           .from('order_items')
           .insert({
@@ -107,15 +106,6 @@ export default function Checkout() {
             quantity: item.quantity,
             subtotal: (item.products?.price || 0) * item.quantity
           });
-        
-        // Reduce stock - using RPC would be better but we'll update directly
-        const currentStock = item.products?.stock || 0;
-        const newStock = Math.max(0, currentStock - item.quantity);
-        
-        await supabase
-          .from('products')
-          .update({ stock: newStock })
-          .eq('id', item.product_id);
       }
       
       // Clear the cart

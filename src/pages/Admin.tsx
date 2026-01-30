@@ -315,14 +315,57 @@ export default function Admin() {
   };
 
   const getOrderStatusBadge = (status: string) => {
-    const variants: Record<string, 'default' | 'secondary' | 'destructive' | 'outline'> = {
-      pending: 'outline',
-      confirmed: 'default',
-      shipped: 'secondary',
-      delivered: 'default',
-      cancelled: 'destructive'
+    const config: Record<string, { variant: 'default' | 'secondary' | 'destructive' | 'outline'; label: string; className?: string }> = {
+      pending: { variant: 'outline', label: 'Pendiente' },
+      processing: { variant: 'secondary', label: 'En proceso' },
+      shipped: { variant: 'secondary', label: 'Enviado' },
+      delivered: { variant: 'default', label: 'Completado', className: 'bg-success text-success-foreground' },
+      cancelled: { variant: 'destructive', label: 'Cancelado' }
     };
-    return <Badge variant={variants[status] || 'outline'}>{status}</Badge>;
+    const { variant, label, className } = config[status] || { variant: 'outline', label: status };
+    return <Badge variant={variant} className={className}>{label}</Badge>;
+  };
+
+  const [updatingOrderId, setUpdatingOrderId] = useState<string | null>(null);
+
+  const handleCompleteOrder = async (order: any) => {
+    setUpdatingOrderId(order.id);
+    try {
+      // Reduce stock for each item in the order
+      for (const item of order.order_items) {
+        // Get current product stock
+        const { data: product, error: productError } = await supabase
+          .from('products')
+          .select('stock')
+          .eq('id', item.product_id)
+          .single();
+        
+        if (productError) throw productError;
+        
+        const newStock = Math.max(0, (product?.stock || 0) - item.quantity);
+        
+        await supabase
+          .from('products')
+          .update({ stock: newStock })
+          .eq('id', item.product_id);
+      }
+      
+      // Update order status to delivered
+      const { error: orderError } = await supabase
+        .from('orders')
+        .update({ status: 'delivered' })
+        .eq('id', order.id);
+      
+      if (orderError) throw orderError;
+      
+      toast.success('Pedido completado y stock actualizado');
+      loadData();
+    } catch (error) {
+      console.error('Error completing order:', error);
+      toast.error('Error al completar el pedido');
+    } finally {
+      setUpdatingOrderId(null);
+    }
   };
 
   if (authLoading || loading) {
@@ -589,12 +632,13 @@ export default function Admin() {
                           <TableHead>Total</TableHead>
                           <TableHead>Estado</TableHead>
                           <TableHead>Items</TableHead>
+                          <TableHead className="text-right">Acciones</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
                         {orders.length === 0 ? (
                           <TableRow>
-                            <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                            <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
                               No hay pedidos
                             </TableCell>
                           </TableRow>
@@ -612,6 +656,21 @@ export default function Admin() {
                               </TableCell>
                               <TableCell>{getOrderStatusBadge(order.status)}</TableCell>
                               <TableCell>{order.order_items?.length || 0} productos</TableCell>
+                              <TableCell className="text-right">
+                                {order.status === 'pending' && (
+                                  <Button
+                                    size="sm"
+                                    onClick={() => handleCompleteOrder(order)}
+                                    disabled={updatingOrderId === order.id}
+                                  >
+                                    {updatingOrderId === order.id ? (
+                                      <Loader2 className="h-4 w-4 animate-spin" />
+                                    ) : (
+                                      'Completar'
+                                    )}
+                                  </Button>
+                                )}
+                              </TableCell>
                             </TableRow>
                           ))
                         )}
