@@ -81,10 +81,6 @@ export default function Index() {
               transition={{ duration: 0.6 }}
               className="max-w-2xl"
             >
-              <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-accent/20 text-accent-foreground text-sm font-medium mb-6">
-                <Sparkles className="h-4 w-4" />
-                Nuevos productos disponibles
-              </span>
               <h1 className="text-4xl md:text-5xl lg:text-6xl font-display font-bold text-primary-foreground mb-6">
                 Descubre lo mejor en <span className="text-accent">NexoShop</span>
               </h1>
@@ -97,9 +93,6 @@ export default function Index() {
                     Explorar productos
                     <ArrowRight className="h-5 w-5" />
                   </a>
-                </Button>
-                <Button variant="outline" className="rounded-full px-6 border-primary-foreground/30 text-primary-foreground hover:bg-primary-foreground/10" asChild>
-                  <Link to="/auth">Crear cuenta</Link>
                 </Button>
               </div>
             </motion.div>
